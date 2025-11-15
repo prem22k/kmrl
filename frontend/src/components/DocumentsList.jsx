@@ -45,7 +45,7 @@ const DocumentsList = () => {
 
   if (loading && documents.length === 0) {
     return (
-      <div className="lg:col-span-2">
+      <div className="w-full">
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden hover-lift transition-all duration-300">
           <div className="flex flex-col justify-center items-center py-20 px-6">
             <div className="relative">
@@ -63,24 +63,24 @@ const DocumentsList = () => {
   }
 
   return (
-    <div className="lg:col-span-2">
+    <div className="w-full">
       <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden hover-lift transition-all duration-300">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-6 border-b border-gray-100">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 lg:p-5 border-b border-gray-100">
           <div className="flex items-center">
-            <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl mr-4">
-              <FileText className="h-6 w-6 text-white" />
+            <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl mr-3">
+              <FileText className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Processed Documents</h2>
-              <p className="text-sm text-gray-600 mt-1">Smart categorization and AI analysis</p>
+              <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Processed Documents</h2>
+              <p className="text-xs lg:text-sm text-gray-600 mt-0.5">Smart categorization and AI analysis</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 lg:gap-3 flex-wrap">
             <div className="relative">
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="appearance-none bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-300"
+                className="appearance-none bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl px-3 py-2 pr-9 text-xs lg:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-300"
               >
                 <option value="">All Categories</option>
                 <option value="Engineering">Engineering</option>
@@ -92,14 +92,14 @@ const DocumentsList = () => {
                 <option value="Regulatory">Regulatory</option>
                 <option value="Other">Other</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <ChevronDown className="h-4 w-4 text-gray-500" />
               </div>
             </div>
-            <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 rounded-full">
+            <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 rounded-full">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-blue-700">
-                {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''}
+              <span className="text-xs lg:text-sm font-medium text-blue-700">
+                {filteredDocuments.length} doc{filteredDocuments.length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
@@ -111,7 +111,7 @@ const DocumentsList = () => {
           </div>
         )}
 
-        <div className="p-6">
+        <div className="p-4 lg:p-5">
           {!loading && filteredDocuments.length === 0 && (
             <div className="text-center py-20">
               <div className="relative inline-block mb-6">
@@ -150,7 +150,7 @@ const DocumentsList = () => {
             </div>
           )}
           {filteredDocuments.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
               {filteredDocuments.map((doc) => (
                 <DocumentCard 
                   key={doc.id} 
