@@ -1,17 +1,91 @@
 export async function categorizeDocument(textContent, fileName = '') {
+  console.log('=== Categorization Started ===');
+  console.log('Text Content Length:', textContent.length);
+  console.log('File Name:', fileName);
+  console.log('Text Preview:', textContent.substring(0, 200));
+  
+  // Check if text extraction failed
+  const isFailedExtraction = textContent.includes('parsing failed') || 
+                            textContent.includes('processing failed') ||
+                            textContent.includes('minimal') ||
+                            textContent.length < 50;
+  
+  if (isFailedExtraction) {
+    console.log('⚠️ Text extraction appears to have failed, using filename-based analysis');
+    return analyzeFromFilename(fileName);
+  }
+  
   // First, get AI analysis with structured JSON output
   const aiResult = await getStructuredAIAnalysis(textContent, fileName);
+  console.log('AI Result:', aiResult);
   
   // Apply backend keyword validation to override obvious mislabels
   const validatedResult = validateAndOverrideCategories(textContent, fileName, aiResult);
+  console.log('Validated Result:', validatedResult);
   
   // Apply rule-based priority detection
   const finalPriority = getRuleBasedPriority(textContent, validatedResult.priority);
+  console.log('Final Priority:', finalPriority);
+  console.log('=== Categorization Complete ===\n');
   
   return {
     category: validatedResult.category,
     priority: finalPriority,
-    analysis: validatedResult.summary
+    analysis: validatedResult.analysis
+  };
+}
+
+// New function to analyze based on filename when text extraction fails
+function analyzeFromFilename(fileName) {
+  console.log('Analyzing from filename:', fileName);
+  const lowerFileName = fileName.toLowerCase();
+  
+  // Category detection from filename
+  const filenameCategories = {
+    'Engineering': ['maintenance', 'repair', 'technical', 'equipment', 'infrastructure', 'construction', 'mech', 'elect', 'system', 'work', 'project'],
+    'Finance': ['budget', 'payment', 'invoice', 'expense', 'cost', 'revenue', 'financial', 'account', 'bill', 'fund'],
+    'Procurement': ['purchase', 'vendor', 'supplier', 'tender', 'quotation', 'contract', 'rfp', 'procurement', 'order'],
+    'HR': ['employee', 'staff', 'personnel', 'recruitment', 'training', 'leave', 'hr', 'attendance', 'salary'],
+    'Legal': ['legal', 'contract', 'agreement', 'compliance', 'regulation', 'law', 'audit', 'policy'],
+    'Safety': ['safety', 'security', 'emergency', 'incident', 'accident', 'hazard', 'risk', 'circular', 'alert'],
+    'Regulatory': ['regulatory', 'government', 'ministry', 'notification', 'directive', 'guideline', 'rule', 'standard']
+  };
+  
+  // Priority keywords in filename
+  const highPriorityKeywords = ['urgent', 'immediate', 'emergency', 'critical', 'asap'];
+  const mediumPriorityKeywords = ['important', 'attention', 'notice', 'reminder'];
+  
+  let detectedCategory = 'Other';
+  let maxMatches = 0;
+  
+  // Find best matching category
+  for (const [category, keywords] of Object.entries(filenameCategories)) {
+    const matches = keywords.filter(keyword => lowerFileName.includes(keyword)).length;
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      detectedCategory = category;
+    }
+  }
+  
+  // Detect priority from filename
+  let priority = 'Low';
+  if (highPriorityKeywords.some(kw => lowerFileName.includes(kw))) {
+    priority = 'High';
+  } else if (mediumPriorityKeywords.some(kw => lowerFileName.includes(kw)) || maxMatches > 0) {
+    priority = 'Medium';
+  }
+  
+  // Generate appropriate summary
+  const summary = maxMatches > 0 
+    ? `${detectedCategory} document identified from filename: "${fileName}". Content extraction unsuccessful - manual review recommended for detailed analysis.`
+    : `Document "${fileName}" has been uploaded. Content extraction was unsuccessful - please review the original file for details.`;
+  
+  console.log('Filename-based result:', { detectedCategory, priority, summary });
+  
+  return {
+    category: detectedCategory,
+    priority: priority,
+    analysis: summary
   };
 }
 
@@ -101,7 +175,7 @@ function validateAndOverrideCategories(textContent, fileName, aiResult) {
   return {
     category: bestCategory,
     priority: aiResult.priority,
-    summary: aiResult.summary
+    analysis: aiResult.summary
   };
 }
 

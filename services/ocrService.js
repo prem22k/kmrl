@@ -44,17 +44,34 @@ export async function performOCRAndAnalysis(filePath) {
           // Dynamic import to avoid initialization issues
           const pdfParse = (await import("pdf-parse")).default;
           const pdfBuffer = fs.readFileSync(filePath);
-          const pdfData = await pdfParse(pdfBuffer);
+          
+          console.log('PDF Buffer size:', pdfBuffer.length, 'bytes');
+          
+          const pdfData = await pdfParse(pdfBuffer, {
+            // Add options to handle different PDF types
+            max: 0, // Parse all pages
+          });
+          
+          console.log('PDF Pages:', pdfData.numpages);
+          console.log('PDF Text Length:', pdfData.text.length);
+          
           textContent = pdfData.text;
           
-          // If PDF has no extractable text, keep what we have for AI processing
+          // If PDF has no extractable text but has pages, it might be image-based
           if (!textContent || textContent.trim().length < 10) {
-            console.log("PDF contains no extractable text");
-            textContent = `${fileName} - PDF document with no extractable text content`;
+            if (pdfData.numpages > 0) {
+              console.log("PDF contains pages but no extractable text - might be image-based PDF");
+              textContent = `${fileName} - PDF document with ${pdfData.numpages} page(s). This appears to be an image-based PDF that requires OCR scanning. Please ensure the PDF contains searchable text or consider re-scanning the document.`;
+            } else {
+              console.log("PDF contains no extractable text");
+              textContent = `${fileName} - PDF document with no extractable text content. The file may be corrupted or encrypted.`;
+            }
           }
+          
+          console.log('Extracted text preview:', textContent.substring(0, 200));
         } catch (pdfError) {
-          console.log("PDF parsing failed:", pdfError.message);
-          textContent = `${fileName} - PDF document (parsing failed)`;
+          console.error("PDF parsing error details:", pdfError);
+          textContent = `${fileName} - PDF document (parsing failed: ${pdfError.message})`;
         }
         break;
       case ".jpeg":
