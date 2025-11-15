@@ -41,37 +41,50 @@ export async function performOCRAndAnalysis(filePath) {
       case ".pdf":
         console.log("PDF file detected - extracting text content:", fileName);
         try {
+          // Check if file exists first
+          if (!fs.existsSync(filePath)) {
+            console.error('PDF file not found:', filePath);
+            textContent = `${fileName} - PDF file not found on server`;
+            break;
+          }
+
           // Dynamic import to avoid initialization issues
           const pdfParse = (await import("pdf-parse")).default;
           const pdfBuffer = fs.readFileSync(filePath);
           
           console.log('PDF Buffer size:', pdfBuffer.length, 'bytes');
           
+          // Parse PDF with error handling for test files
           const pdfData = await pdfParse(pdfBuffer, {
-            // Add options to handle different PDF types
             max: 0, // Parse all pages
+            version: 'default', // Use default version
+          }).catch(err => {
+            console.error('PDF Parse Error:', err.message);
+            // Return empty result if parsing fails
+            return { text: '', numpages: 0, info: {} };
           });
           
           console.log('PDF Pages:', pdfData.numpages);
-          console.log('PDF Text Length:', pdfData.text.length);
+          console.log('PDF Text Length:', pdfData.text?.length || 0);
           
-          textContent = pdfData.text;
+          textContent = pdfData.text || '';
           
           // If PDF has no extractable text but has pages, it might be image-based
           if (!textContent || textContent.trim().length < 10) {
             if (pdfData.numpages > 0) {
               console.log("PDF contains pages but no extractable text - might be image-based PDF");
-              textContent = `${fileName} - PDF document with ${pdfData.numpages} page(s). This appears to be an image-based PDF that requires OCR scanning. Please ensure the PDF contains searchable text or consider re-scanning the document.`;
+              textContent = `${fileName} - PDF document with ${pdfData.numpages} page(s). This appears to be an image-based or scanned PDF that requires OCR processing. The document may contain text in image format that needs special processing.`;
             } else {
-              console.log("PDF contains no extractable text");
-              textContent = `${fileName} - PDF document with no extractable text content. The file may be corrupted or encrypted.`;
+              console.log("PDF contains no extractable text or pages");
+              textContent = `${fileName} - PDF document appears to be empty or may have formatting that prevents text extraction. Please verify the file is not corrupted.`;
             }
           }
           
           console.log('Extracted text preview:', textContent.substring(0, 200));
         } catch (pdfError) {
-          console.error("PDF parsing error details:", pdfError);
-          textContent = `${fileName} - PDF document (parsing failed: ${pdfError.message})`;
+          console.error("PDF parsing error details:", pdfError.message);
+          console.error("Error stack:", pdfError.stack);
+          textContent = `${fileName} - PDF document processing encountered an error. The file may be password-protected, corrupted, or in an unsupported format.`;
         }
         break;
       case ".jpeg":
