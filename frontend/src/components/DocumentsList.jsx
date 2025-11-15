@@ -113,22 +113,40 @@ const DocumentsList = () => {
 
         <div className="p-6">
           {!loading && filteredDocuments.length === 0 && (
-            <div className="text-center py-16">
-              <div className="relative inline-block">
-                <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-6">
-                  <FileText className="h-12 w-12 text-gray-400" />
+            <div className="text-center py-20">
+              <div className="relative inline-block mb-6">
+                <div className="w-32 h-32 bg-gradient-to-br from-blue-100 via-purple-100 to-indigo-100 rounded-3xl flex items-center justify-center transform rotate-3 hover:rotate-6 transition-transform duration-300">
+                  <FileText className="h-16 w-16 text-blue-500" />
                 </div>
-                <div className="absolute -inset-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-2xl blur opacity-50"></div>
+                <div className="absolute -inset-3 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-indigo-600/20 rounded-3xl blur-xl opacity-60 animate-pulse"></div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">No documents found</h3>
-              <p className="text-gray-500 mb-4">
-                {selectedCategory ? `No documents in ${selectedCategory} category` : 'Upload your first document to get started'}
+              <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                {selectedCategory ? `No ${selectedCategory} Documents` : 'No Documents Yet'}
+              </h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                {selectedCategory 
+                  ? `No documents found in ${selectedCategory} category. Try selecting a different category or upload a new document.`
+                  : 'Get started by uploading your first document. Our AI will automatically process and categorize it for you.'}
               </p>
-              <div className="flex justify-center space-x-2">
-                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">AI Powered</div>
-                <div className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Smart Categorization</div>
-                <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Instant Processing</div>
+              <div className="flex justify-center gap-3 flex-wrap mb-8">
+                <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 rounded-full text-sm font-medium shadow-sm">
+                  🤖 AI Powered
+                </div>
+                <div className="px-4 py-2 bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-full text-sm font-medium shadow-sm">
+                  ⚡ Instant Processing
+                </div>
+                <div className="px-4 py-2 bg-gradient-to-r from-green-100 to-green-200 text-green-700 rounded-full text-sm font-medium shadow-sm">
+                  🎯 Smart Categorization
+                </div>
               </div>
+              {selectedCategory && (
+                <button
+                  onClick={() => setSelectedCategory('')}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  Show All Documents
+                </button>
+              )}
             </div>
           )}
           {filteredDocuments.length > 0 && (
