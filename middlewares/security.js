@@ -46,7 +46,11 @@ export const corsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',')
-      : ['http://localhost:3000', 'http://localhost:5000'];
+      : [
+          'http://localhost:3000',
+          'http://localhost:5000',
+          'https://kmrl-backend-b185.onrender.com'
+        ];
     
     // Allow requests with no origin (mobile apps, postman, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
