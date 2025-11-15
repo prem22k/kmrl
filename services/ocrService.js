@@ -2,306 +2,204 @@ import fs from "fs";
 import path from "path";
 import Tesseract from "tesseract.js";
 import mammoth from "mammoth";
+
+/**
+ * Main entry point for OCR processing
+ * Returns extracted text from any supported document format
+ */
 export async function main(filePath) {
   try {
-    const extractedText = await performOCRAndAnalysis(filePath);
-    const summary = await analyzeDocumentContent(extractedText)
-
-    console.log(summary);
+    console.log('\n=== OCR Processing Started ===');
+    console.log('File Path:', filePath);
     
-    if (!extractedText) {
-      throw new Error('No text could be extracted from the file');
+    const extractedText = await performOCRAndAnalysis(filePath);
+    
+    if (!extractedText || extractedText.trim().length < 5) {
+      console.log('⚠️ Warning: Minimal text extracted');
+      const fileName = path.basename(filePath);
+      return `${fileName} - Document uploaded but text extraction yielded minimal content. Using filename for analysis.`;
     }
     
-    // Log analysis for debugging
-    console.log("--- Document Analysis Report ---");
-    console.log("Extracted Text Length:", extractedText.length);
-    console.log("--------------------------------")
+    console.log('✅ Text extraction successful');
+    console.log('Extracted Text Length:', extractedText.length, 'characters');
+    console.log('Text Preview:', extractedText.substring(0, 300));
+    console.log('=== OCR Processing Complete ===\n');
     
     return extractedText;
   } catch (error) {
-    console.error('Error in main OCR function:', error);
-    throw error; // Re-throw to be handled by the controller
+    console.error('❌ Error in main OCR function:', error.message);
+    throw error;
   }
 }
 
-// This function is now only used for processing and returning text
-// main();s OCR and text extraction from various document file types.
-//  * @param {string} filePath - The path to the document file.
-//  * @returns {Promise<string>} - A promise that resolves with the extracted text content.
-//  */
-
+/**
+ * Performs OCR and text extraction from various document file types
+ * For PDFs: Tries direct text extraction first, falls back to OCR if needed
+ * For Images: Uses Tesseract OCR
+ * For DOCX: Extracts text directly
+ * For TXT: Reads file content
+ */
 export async function performOCRAndAnalysis(filePath) {
   const fileExtension = path.extname(filePath).toLowerCase();
-  const fileName = path.basename(filePath).toLowerCase();
+  const fileName = path.basename(filePath);
   let textContent = "";
+
+  console.log(`\n📄 Processing ${fileExtension.toUpperCase()} file: ${fileName}`);
 
   try {
     switch (fileExtension) {
       case ".pdf":
-        console.log("PDF file detected - extracting text content:", fileName);
-        try {
-          // Check if file exists first
-          if (!fs.existsSync(filePath)) {
-            console.error('PDF file not found:', filePath);
-            textContent = `${fileName} - PDF file not found on server`;
-            break;
-          }
-
-          const pdfBuffer = fs.readFileSync(filePath);
-          console.log('PDF Buffer size:', pdfBuffer.length, 'bytes');
-          
-          // Try to parse PDF with minimal dependencies
-          try {
-            const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-            
-            const pdfData = await pdfParse(pdfBuffer, {
-              max: 0,
-              pagerender: function(pageData) {
-                // Extract text from each page
-                return pageData.getTextContent().then(function(textContent) {
-                  let text = '';
-                  textContent.items.forEach(function(item) {
-                    text += item.str + ' ';
-                  });
-                  return text;
-                });
-              }
-            }).catch(parseError => {
-              console.warn('PDF parse failed, trying fallback:', parseError.message);
-              return null;
-            });
-            
-            if (pdfData && pdfData.text) {
-              textContent = pdfData.text;
-              console.log('PDF Pages:', pdfData.numpages);
-              console.log('PDF Text Length:', textContent.length);
-              console.log('Text preview:', textContent.substring(0, 300));
-            }
-          } catch (importError) {
-            console.warn('PDF import failed:', importError.message);
-          }
-          
-          // Fallback: Try basic buffer read
-          if (!textContent || textContent.trim().length < 20) {
-            console.log('Attempting buffer-based text extraction...');
-            
-            // Convert buffer to string and look for text patterns
-            const bufferString = pdfBuffer.toString('utf8');
-            const textMatches = bufferString.match(/[A-Za-z0-9\s.,!?;:'"()-]{10,}/g);
-            
-            if (textMatches && textMatches.length > 0) {
-              textContent = textMatches.join(' ').trim();
-              console.log('Extracted from buffer:', textContent.length, 'characters');
-            }
-          }
-          
-          // Final fallback with more detailed info
-          if (!textContent || textContent.trim().length < 20) {
-            console.log("Unable to extract meaningful text from PDF");
-            const fileSize = (pdfBuffer.length / 1024).toFixed(2);
-            textContent = `${fileName} (${fileSize} KB) - This PDF appears to be image-based, encrypted, or contains non-standard formatting. Analyzing based on filename and metadata for categorization.`;
-          } else {
-            console.log('Successfully extracted text:', textContent.length, 'characters');
-          }
-          
-        } catch (pdfError) {
-          console.error("PDF processing error:", pdfError.message);
-          console.error("Error stack:", pdfError.stack?.substring(0, 500));
-          const fileSize = fs.existsSync(filePath) ? (fs.statSync(filePath).size / 1024).toFixed(2) : 'unknown';
-          textContent = `${fileName} (${fileSize} KB) - PDF processing encountered an issue. Using filename-based analysis for categorization.`;
-        }
+        console.log("🔍 PDF detected - attempting text extraction");
+        textContent = await extractTextFromPDF(filePath, fileName);
         break;
+        
       case ".jpeg":
       case ".jpg":
       case ".png":
-        console.log("Image file detected - performing OCR:", fileName);
-        try {
-          const { data: { text } } = await Tesseract.recognize(filePath, "eng+mal", {
-            logger: m => console.log(m)
-          });
-          textContent = text;
-          
-          // Keep whatever text was extracted, even if minimal
-          if (!textContent || textContent.trim().length < 5) {
-            console.log("OCR extracted minimal text");
-            textContent = `${fileName} - Image document with minimal readable text`;
-          }
-        } catch (ocrError) {
-          console.log("OCR failed:", ocrError.message);
-          textContent = `${fileName} - Image document (OCR processing failed)`;
-        }
+        console.log("🖼️ Image detected - performing OCR");
+        textContent = await extractTextFromImage(filePath, fileName);
         break;
+        
       case ".docx":
-        console.log("DOCX file detected - extracting text:", fileName);
-        try {
-          const { value } = await mammoth.extractRawText({ path: filePath });
-          textContent = value;
-          
-          // Keep whatever content was extracted from DOCX
-          if (!textContent || textContent.trim().length < 10) {
-            console.log("DOCX contains minimal text");
-            textContent = `${fileName} - Word document with minimal content`;
-          }
-        } catch (docxError) {
-          console.log("DOCX parsing failed:", docxError.message);
-          textContent = `${fileName} - Word document (parsing failed)`;
-        }
+        console.log("📝 DOCX detected - extracting text");
+        textContent = await extractTextFromDOCX(filePath, fileName);
         break;
+        
       case ".txt":
-        console.log("Text file detected - reading content:", fileName);
-        try {
-          textContent = fs.readFileSync(filePath, "utf-8");
-          
-          // Keep whatever content exists in text file
-          if (!textContent || textContent.trim().length < 5) {
-            console.log("Text file is empty or very short");
-            textContent = `${fileName} - Text document with minimal content`;
-          }
-        } catch (txtError) {
-          console.log("Text file reading failed:", txtError.message);
-          textContent = `${fileName} - Text document (reading failed)`;
-        }
+        console.log("📃 TXT detected - reading content");
+        textContent = await extractTextFromTXT(filePath, fileName);
         break;
+        
       default:
-        console.log("Unsupported file type:", fileExtension);
-        textContent = `${fileName} - Document type ${fileExtension} (unsupported format)`;
+        console.log(`⚠️ Unsupported file type: ${fileExtension}`);
+        textContent = `${fileName} - Unsupported file format ${fileExtension}`;
         break;
     }
   } catch (error) {
-    console.error("OCR error:", error);
-    textContent = "Error during OCR or text extraction.";
+    console.error("❌ OCR/Extraction error:", error.message);
+    textContent = `${fileName} - Error during text extraction: ${error.message}`;
   }
 
   return textContent;
 }
 
-
 /**
- * Generates a summary, priority, and metadata for a given text content using the Gemini API.
- * @param {string} textContent - The text content extracted from the document.
- * @returns {Promise<object>} - A promise that resolves with a structured object containing the analysis.
+ * Extract text from PDF - tries multiple methods
  */
-export async function analyzeDocumentContent(textContent) {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function extractTextFromPDF(filePath, fileName) {
+  let textContent = "";
   
-  if (!apiKey) {
-    console.error("GEMINI_API_KEY not found in environment variables");
-    return {
-      summary: "Analysis unavailable - API key not configured.",
-      priority: "Medium",
-      metadata: {
-        purpose: "Error handling",
-        known_limitations: "GEMINI_API_KEY environment variable not set.",
-        security_note: "Please configure API key in .env file",
-        scalability_note: "N/A"
-      }
-    };
-  }
-  
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-  const systemPrompt = `You are a government-facing document analysis system. Your task is to provide a comprehensive summary, priority assessment, and detailed metadata for a given document's content.`;
-
-  const userQuery = `Analyze the following document content and provide the requested information in a structured format:
-    
-    Document Content:
-    ---
-    ${textContent}
-    ---
-    
-    Summary: A concise, single-paragraph summary of the document's content and purpose.
-    Priority: An assessment of its priority for a government agency (High, Medium, Low) and a brief justification.
-    Metadata: A JSON object containing key information about the document, including its purpose, known limitations, and security and scalability notes.`;
-
-  const payload = {
-    contents: [{ parts: [{ text: userQuery }] }],
-    systemInstruction: {
-      parts: [{ text: systemPrompt }]
-    },
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: "OBJECT",
-        properties: {
-          summary: { type: "STRING" },
-          priority: { type: "STRING" },
-          metadata: {
-            type: "OBJECT",
-            properties: {
-              purpose: { type: "STRING" },
-              known_limitations: { type: "STRING" },
-              security_note: { type: "STRING" },
-              scalability_note: { type: "STRING" }
-            }
-          }
-        },
-        propertyOrdering: ["summary", "priority", "metadata"]
-      }
-    }
-  };
-
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    // Method 1: Try pdf-parse for text-based PDFs
+    console.log("Method 1: Trying pdf-parse...");
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+    const pdfBuffer = fs.readFileSync(filePath);
+    
+    const pdfData = await pdfParse(pdfBuffer, { max: 0 }).catch(err => {
+      console.log("pdf-parse failed:", err.message);
+      return null;
     });
-
-    if (!response.ok) {
-      throw new Error(`API call failed with status: ${response.status}`);
+    
+    if (pdfData && pdfData.text && pdfData.text.trim().length > 50) {
+      textContent = pdfData.text.trim();
+      console.log(`✅ Extracted ${textContent.length} characters using pdf-parse`);
+      console.log(`📊 PDF has ${pdfData.numpages} pages`);
+      return textContent;
     }
-
-    const result = await response.json();
-    const candidate = result.candidates?.[0];
-
-    if (candidate && candidate.content?.parts?.[0]?.text) {
-      const json = candidate.content.parts[0].text;
-      return JSON.parse(json);
-    } else {
-      console.error("Unexpected API response format:", result);
-      return {
-        summary: "Analysis failed due to unexpected API response.",
-        priority: "Unknown",
-        metadata: {
-          purpose: "Error handling",
-          known_limitations: "API response format issue.",
-          security_note: "N/A",
-          scalability_note: "N/A"
-        }
-      };
-    }
-  } catch (error) {
-    console.error("Error generating analysis report with Gemini API:", error);
-    return {
-      summary: "Analysis failed due to API call error.",
-      priority: "Unknown",
-      metadata: {
-        purpose: "Error handling",
-        known_limitations: error.message,
-        security_note: "N/A",
-        scalability_note: "N/A"
+    
+    // Method 2: Buffer-based extraction
+    console.log("Method 2: Trying buffer extraction...");
+    const bufferString = pdfBuffer.toString('utf8');
+    const textMatches = bufferString.match(/[A-Za-z0-9\s.,!?;:'"()\-]{15,}/g);
+    
+    if (textMatches && textMatches.length > 5) {
+      textContent = textMatches.join(' ').trim();
+      if (textContent.length > 50) {
+        console.log(`✅ Extracted ${textContent.length} characters from buffer`);
+        return textContent;
       }
-    };
+    }
+    
+    // Method 3: OCR fallback for image-based PDFs
+    // Note: This would require converting PDF to images first
+    // For now, return informative message
+    console.log("⚠️ PDF appears to be image-based or encrypted");
+    const fileSize = (pdfBuffer.length / 1024).toFixed(2);
+    return `${fileName} (${fileSize} KB PDF) - This PDF appears to be image-based, scanned, or has protected content. For better results, please provide a text-searchable PDF or use the original document source.`;
+    
+  } catch (error) {
+    console.error("PDF extraction error:", error.message);
+    return `${fileName} - PDF processing error: ${error.message}. Please verify the file is not corrupted or password-protected.`;
   }
 }
 
 /**
- * A simple main function to demonstrate the complete workflow.
- * Replace 'example.jpg' with a valid file path to test.
-//  */
-// export async function main(filePath) {
-//    // CHANGE THIS TO A VALID FILE PATH
-//   const extractedText = await performOCRAndAnalysis(filePath);
-//   const analysisReport = await analyzeDocumentContent(extractedText);
+ * Extract text from images using Tesseract OCR
+ */
+async function extractTextFromImage(filePath, fileName) {
+  try {
+    console.log("🔄 Starting Tesseract OCR...");
+    
+    const { data: { text } } = await Tesseract.recognize(filePath, "eng", {
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          console.log(`OCR Progress: ${(m.progress * 100).toFixed(1)}%`);
+        }
+      }
+    });
+    
+    if (text && text.trim().length > 10) {
+      console.log(`✅ OCR extracted ${text.length} characters`);
+      return text.trim();
+    }
+    
+    console.log("⚠️ OCR extracted minimal text");
+    return `${fileName} - Image processed but contains minimal readable text. The image may be unclear, low quality, or contain non-text content.`;
+    
+  } catch (error) {
+    console.error("OCR error:", error.message);
+    return `${fileName} - OCR processing failed: ${error.message}`;
+  }
+}
 
-//   console.log("\n--- Document Analysis Report ---");
-//   console.log("Summary:", analysisReport.summary);
-//   console.log("\nPriority:", analysisReport.priority);
-//   console.log("\nMetadata:", JSON.stringify(analysisReport.metadata, null, 2));
-//   console.log("--------------------------------\n");
-//   return analysisReport
-// }
+/**
+ * Extract text from DOCX files
+ */
+async function extractTextFromDOCX(filePath, fileName) {
+  try {
+    const { value } = await mammoth.extractRawText({ path: filePath });
+    
+    if (value && value.trim().length > 10) {
+      console.log(`✅ Extracted ${value.length} characters from DOCX`);
+      return value.trim();
+    }
+    
+    console.log("⚠️ DOCX contains minimal text");
+    return `${fileName} - Word document contains minimal text content.`;
+    
+  } catch (error) {
+    console.error("DOCX extraction error:", error.message);
+    return `${fileName} - DOCX processing failed: ${error.message}`;
+  }
+}
 
-// Call the main function to run the demonstration.
-// main();
+/**
+ * Extract text from TXT files
+ */
+async function extractTextFromTXT(filePath, fileName) {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    
+    if (content && content.trim().length > 5) {
+      console.log(`✅ Read ${content.length} characters from TXT`);
+      return content.trim();
+    }
+    
+    console.log("⚠️ TXT file is empty or very short");
+    return `${fileName} - Text file is empty or contains minimal content.`;
+    
+  } catch (error) {
+    console.error("TXT reading error:", error.message);
+    return `${fileName} - Text file reading failed: ${error.message}`;
+  }
+}
