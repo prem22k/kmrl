@@ -10,10 +10,16 @@ function App() {
     <DocumentProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
         <Header />
-        <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            <UploadSection />
-            <DocumentsList />
+        <main className="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
+          <div className="max-w-[1600px] mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 animate-fade-in">
+              <div className="lg:col-span-4 xl:col-span-3">
+                <UploadSection />
+              </div>
+              <div className="lg:col-span-8 xl:col-span-9">
+                <DocumentsList />
+              </div>
+            </div>
           </div>
         </main>
         
