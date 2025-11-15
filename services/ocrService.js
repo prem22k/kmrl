@@ -48,43 +48,68 @@ export async function performOCRAndAnalysis(filePath) {
             break;
           }
 
-          // Dynamic import to avoid initialization issues
-          const pdfParse = (await import("pdf-parse")).default;
           const pdfBuffer = fs.readFileSync(filePath);
-          
           console.log('PDF Buffer size:', pdfBuffer.length, 'bytes');
           
-          // Parse PDF with error handling for test files
-          const pdfData = await pdfParse(pdfBuffer, {
-            max: 0, // Parse all pages
-            version: 'default', // Use default version
-          }).catch(err => {
-            console.error('PDF Parse Error:', err.message);
-            // Return empty result if parsing fails
-            return { text: '', numpages: 0, info: {} };
-          });
+          // Try to parse PDF with minimal dependencies
+          try {
+            const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+            
+            const pdfData = await pdfParse(pdfBuffer, {
+              max: 0,
+              pagerender: function(pageData) {
+                // Extract text from each page
+                return pageData.getTextContent().then(function(textContent) {
+                  let text = '';
+                  textContent.items.forEach(function(item) {
+                    text += item.str + ' ';
+                  });
+                  return text;
+                });
+              }
+            }).catch(parseError => {
+              console.warn('PDF parse failed, trying fallback:', parseError.message);
+              return null;
+            });
+            
+            if (pdfData && pdfData.text) {
+              textContent = pdfData.text;
+              console.log('PDF Pages:', pdfData.numpages);
+              console.log('PDF Text Length:', textContent.length);
+              console.log('Text preview:', textContent.substring(0, 300));
+            }
+          } catch (importError) {
+            console.warn('PDF import failed:', importError.message);
+          }
           
-          console.log('PDF Pages:', pdfData.numpages);
-          console.log('PDF Text Length:', pdfData.text?.length || 0);
-          
-          textContent = pdfData.text || '';
-          
-          // If PDF has no extractable text but has pages, it might be image-based
-          if (!textContent || textContent.trim().length < 10) {
-            if (pdfData.numpages > 0) {
-              console.log("PDF contains pages but no extractable text - might be image-based PDF");
-              textContent = `${fileName} - PDF document with ${pdfData.numpages} page(s). This appears to be an image-based or scanned PDF that requires OCR processing. The document may contain text in image format that needs special processing.`;
-            } else {
-              console.log("PDF contains no extractable text or pages");
-              textContent = `${fileName} - PDF document appears to be empty or may have formatting that prevents text extraction. Please verify the file is not corrupted.`;
+          // Fallback: Try basic buffer read
+          if (!textContent || textContent.trim().length < 20) {
+            console.log('Attempting buffer-based text extraction...');
+            
+            // Convert buffer to string and look for text patterns
+            const bufferString = pdfBuffer.toString('utf8');
+            const textMatches = bufferString.match(/[A-Za-z0-9\s.,!?;:'"()-]{10,}/g);
+            
+            if (textMatches && textMatches.length > 0) {
+              textContent = textMatches.join(' ').trim();
+              console.log('Extracted from buffer:', textContent.length, 'characters');
             }
           }
           
-          console.log('Extracted text preview:', textContent.substring(0, 200));
+          // Final fallback with more detailed info
+          if (!textContent || textContent.trim().length < 20) {
+            console.log("Unable to extract meaningful text from PDF");
+            const fileSize = (pdfBuffer.length / 1024).toFixed(2);
+            textContent = `${fileName} (${fileSize} KB) - This PDF appears to be image-based, encrypted, or contains non-standard formatting. Analyzing based on filename and metadata for categorization.`;
+          } else {
+            console.log('Successfully extracted text:', textContent.length, 'characters');
+          }
+          
         } catch (pdfError) {
-          console.error("PDF parsing error details:", pdfError.message);
-          console.error("Error stack:", pdfError.stack);
-          textContent = `${fileName} - PDF document processing encountered an error. The file may be password-protected, corrupted, or in an unsupported format.`;
+          console.error("PDF processing error:", pdfError.message);
+          console.error("Error stack:", pdfError.stack?.substring(0, 500));
+          const fileSize = fs.existsSync(filePath) ? (fs.statSync(filePath).size / 1024).toFixed(2) : 'unknown';
+          textContent = `${fileName} (${fileSize} KB) - PDF processing encountered an issue. Using filename-based analysis for categorization.`;
         }
         break;
       case ".jpeg":

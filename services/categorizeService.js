@@ -7,8 +7,12 @@ export async function categorizeDocument(textContent, fileName = '') {
   // Check if text extraction failed
   const isFailedExtraction = textContent.includes('parsing failed') || 
                             textContent.includes('processing failed') ||
+                            textContent.includes('processing encountered') ||
                             textContent.includes('minimal') ||
-                            textContent.length < 50;
+                            textContent.includes('image-based') ||
+                            textContent.includes('encrypted') ||
+                            textContent.includes('filename-based analysis') ||
+                            textContent.length < 100;
   
   if (isFailedExtraction) {
     console.log('⚠️ Text extraction appears to have failed, using filename-based analysis');
@@ -42,13 +46,13 @@ function analyzeFromFilename(fileName) {
   
   // Category detection from filename
   const filenameCategories = {
-    'Engineering': ['maintenance', 'repair', 'technical', 'equipment', 'infrastructure', 'construction', 'mech', 'elect', 'system', 'work', 'project'],
-    'Finance': ['budget', 'payment', 'invoice', 'expense', 'cost', 'revenue', 'financial', 'account', 'bill', 'fund'],
-    'Procurement': ['purchase', 'vendor', 'supplier', 'tender', 'quotation', 'contract', 'rfp', 'procurement', 'order'],
-    'HR': ['employee', 'staff', 'personnel', 'recruitment', 'training', 'leave', 'hr', 'attendance', 'salary'],
-    'Legal': ['legal', 'contract', 'agreement', 'compliance', 'regulation', 'law', 'audit', 'policy'],
-    'Safety': ['safety', 'security', 'emergency', 'incident', 'accident', 'hazard', 'risk', 'circular', 'alert'],
-    'Regulatory': ['regulatory', 'government', 'ministry', 'notification', 'directive', 'guideline', 'rule', 'standard']
+    'Engineering': ['maintenance', 'repair', 'technical', 'equipment', 'infrastructure', 'construction', 'mech', 'elect', 'system', 'work', 'project', 'design', 'specification'],
+    'Finance': ['budget', 'payment', 'invoice', 'expense', 'cost', 'revenue', 'financial', 'account', 'bill', 'fund', 'audit', 'finance'],
+    'Procurement': ['purchase', 'vendor', 'supplier', 'tender', 'quotation', 'contract', 'rfp', 'procurement', 'order', 'acquisition'],
+    'HR': ['employee', 'staff', 'personnel', 'recruitment', 'training', 'leave', 'hr', 'attendance', 'salary', 'resume', 'cv', 'career', 'job', 'hiring'],
+    'Legal': ['legal', 'contract', 'agreement', 'compliance', 'regulation', 'law', 'audit', 'policy', 'terms', 'conditions'],
+    'Safety': ['safety', 'security', 'emergency', 'incident', 'accident', 'hazard', 'risk', 'circular', 'alert', 'warning', 'precaution'],
+    'Regulatory': ['regulatory', 'government', 'ministry', 'notification', 'directive', 'guideline', 'rule', 'standard', 'compliance', 'mandate']
   };
   
   // Priority keywords in filename
