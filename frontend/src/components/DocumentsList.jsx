@@ -46,8 +46,8 @@ const DocumentsList = () => {
   if (loading && documents.length === 0) {
     return (
       <div className="lg:col-span-2">
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover-lift transition-all duration-300">
-          <div className="flex flex-col justify-center items-center py-16">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden hover-lift transition-all duration-300">
+          <div className="flex flex-col justify-center items-center py-20 px-6">
             <div className="relative">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent absolute top-0 left-0"></div>
@@ -64,8 +64,8 @@ const DocumentsList = () => {
 
   return (
     <div className="lg:col-span-2">
-      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover-lift transition-all duration-300">
-        <div className="flex justify-between items-center mb-8">
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden hover-lift transition-all duration-300">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-6 border-b border-gray-100">
           <div className="flex items-center">
             <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl mr-4">
               <FileText className="h-6 w-6 text-white" />
@@ -75,12 +75,12 @@ const DocumentsList = () => {
               <p className="text-sm text-gray-600 mt-1">Smart categorization and AI analysis</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="appearance-none bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-300"
+                className="appearance-none bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-300"
               >
                 <option value="">All Categories</option>
                 <option value="Engineering">Engineering</option>
@@ -150,7 +150,7 @@ const DocumentsList = () => {
             </div>
           )}
           {filteredDocuments.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {filteredDocuments.map((doc) => (
                 <DocumentCard 
                   key={doc.id} 
