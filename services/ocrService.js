@@ -128,7 +128,22 @@ export async function performOCRAndAnalysis(filePath) {
  * @returns {Promise<object>} - A promise that resolves with a structured object containing the analysis.
  */
 export async function analyzeDocumentContent(textContent) {
-  const apiKey = process.env.GEMINI_API_KEY || "AIzaSyDfrVnWEt0DRlMakg8KYgnkPtSV7Cxiku0";
+  const apiKey = process.env.GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY not found in environment variables");
+    return {
+      summary: "Analysis unavailable - API key not configured.",
+      priority: "Medium",
+      metadata: {
+        purpose: "Error handling",
+        known_limitations: "GEMINI_API_KEY environment variable not set.",
+        security_note: "Please configure API key in .env file",
+        scalability_note: "N/A"
+      }
+    };
+  }
+  
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
   const systemPrompt = `You are a government-facing document analysis system. Your task is to provide a comprehensive summary, priority assessment, and detailed metadata for a given document's content.`;

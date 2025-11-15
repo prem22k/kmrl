@@ -1,16 +1,77 @@
 import express from "express";
-import { uploadMiddleware } from "../middlewares/uploadMiddleware.js";
-import { processFile, getDocuments, downloadFile } from "../controllers/fileController.js";
+import {  
+  processFile, 
+  getDocuments, 
+  downloadFile, 
+  getDocumentById,
+  getStatistics 
+} from "../controllers/fileController.js";
+import { upload } from "../middlewares/uploadMiddleware.js";
+import { 
+  validateFileUpload, 
+  validateDocumentId,
+  validateDocumentQuery
+} from "../middlewares/validation.js";
+import { auditLog } from "../middlewares/security.js";
 
 const router = express.Router();
 
-// File upload and processing route
-router.post("/process-file", uploadMiddleware, processFile);
+/**
+ * @route   POST /api/process-file
+ * @desc    Upload and process a document with OCR and AI analysis
+ * @access  Public (add auth later)
+ */
+router.post(
+  "/process-file",
+  upload.single("document"),
+  validateFileUpload,
+  auditLog('document_upload'),
+  processFile
+);
 
-// Get all processed documents
-router.get("/documents", getDocuments);
+/**
+ * @route   GET /api/documents
+ * @desc    Get all processed documents with optional filtering
+ * @query   category, priority, status, page, limit
+ * @access  Public (add auth later)
+ */
+router.get(
+  "/documents",
+  validateDocumentQuery,
+  getDocuments
+);
 
-// Download original file
-router.get("/download/:id", downloadFile);
+/**
+ * @route   GET /api/documents/:id
+ * @desc    Get a specific document by ID
+ * @access  Public (add auth later)
+ */
+router.get(
+  "/documents/:id",
+  validateDocumentId,
+  getDocumentById
+);
+
+/**
+ * @route   GET /api/download/:id
+ * @desc    Download the original file by document ID
+ * @access  Public (add auth later)
+ */
+router.get(
+  "/download/:id",
+  validateDocumentId,
+  auditLog('document_download'),
+  downloadFile
+);
+
+/**
+ * @route   GET /api/statistics
+ * @desc    Get document processing statistics
+ * @access  Public (add auth later)
+ */
+router.get(
+  "/statistics",
+  getStatistics
+);
 
 export default router;
