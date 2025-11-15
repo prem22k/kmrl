@@ -68,9 +68,14 @@ app.use("/api", fileRoutes);
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
   
-  // Catch-all route for React Router (Express 5.x compatible)
-  app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
+  // Catch-all route for React Router - use middleware for Express 5.x compatibility
+  app.use((req, res, next) => {
+    // Only serve index.html for non-API routes
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
+    } else {
+      next();
+    }
   });
 } else {
   // Development mode - just serve API
