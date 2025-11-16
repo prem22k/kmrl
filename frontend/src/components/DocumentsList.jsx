@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, ChevronDown } from 'lucide-react';
+import { FileText, ChevronDown, Trash2 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentContext';
 import DocumentCard from './DocumentCard';
 import DocumentModal from './DocumentModal';
@@ -8,6 +8,8 @@ const DocumentsList = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDocs, setSelectedDocs] = useState(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { documents, loading, error, deleteDocument } = useDocuments();
 
   const filteredDocuments = documents.filter(doc => 
@@ -53,6 +55,42 @@ const DocumentsList = () => {
     }
   };
 
+  const toggleSelectDoc = (docId) => {
+    const newSelected = new Set(selectedDocs);
+    if (newSelected.has(docId)) {
+      newSelected.delete(docId);
+    } else {
+      newSelected.add(docId);
+    }
+    setSelectedDocs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDocs.size === filteredDocuments.length) {
+      setSelectedDocs(new Set());
+    } else {
+      setSelectedDocs(new Set(filteredDocuments.map(doc => doc.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDocs.size === 0) return;
+    
+    const count = selectedDocs.size;
+    if (window.confirm(`Are you sure you want to delete ${count} document${count > 1 ? 's' : ''}? This action cannot be undone.`)) {
+      try {
+        // Delete all selected documents
+        await Promise.all(Array.from(selectedDocs).map(id => deleteDocument(id)));
+        setSelectedDocs(new Set());
+        setIsSelectionMode(false);
+        console.log(`${count} documents deleted successfully`);
+      } catch (error) {
+        console.error('Bulk delete failed:', error);
+        alert('Failed to delete some documents. Please try again.');
+      }
+    }
+  };
+
   if (loading && documents.length === 0) {
     return (
       <div className="w-full">
@@ -86,6 +124,38 @@ const DocumentsList = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-3 flex-wrap">
+            {filteredDocuments.length > 0 && (
+              <button
+                onClick={() => {
+                  setIsSelectionMode(!isSelectionMode);
+                  setSelectedDocs(new Set());
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  isSelectionMode
+                    ? 'bg-red-100 text-red-700 border-2 border-red-300 hover:bg-red-200'
+                    : 'bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200'
+                }`}
+              >
+                {isSelectionMode ? 'Cancel Selection' : 'Select Multiple'}
+              </button>
+            )}
+            {isSelectionMode && selectedDocs.size > 0 && (
+              <>
+                <button
+                  onClick={toggleSelectAll}
+                  className="px-4 py-2 bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 rounded-xl text-sm font-medium transition-all duration-300"
+                >
+                  {selectedDocs.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete {selectedDocs.size} Selected
+                </button>
+              </>
+            )}
             <div className="relative">
               <select
                 value={selectedCategory}
@@ -167,7 +237,9 @@ const DocumentsList = () => {
                   document={doc} 
                   onView={handleViewDetails}
                   onDownload={handleDownload}
-                  onDelete={handleDelete}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedDocs.has(doc.id)}
+                  onToggleSelect={toggleSelectDoc}
                 />
               ))}
             </div>
@@ -179,6 +251,7 @@ const DocumentsList = () => {
         document={selectedDocument}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onDelete={handleDelete}
       />
     </div>
   );
