@@ -4,9 +4,9 @@
  */
 
 import React, { memo, useCallback } from 'react';
-import { FileText, Download, Eye, Clock, AlertCircle } from 'lucide-react';
+import { FileText, Download, Eye, Clock, Trash2 } from 'lucide-react';
 
-const DocumentCard = memo(function DocumentCard({ document, onView, onDownload }) {
+const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, onDelete }) {
   // Category color mapping
   const categoryColors = {
     Engineering: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -67,6 +67,13 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload }
     e.stopPropagation();
     onDownload(document.id);
   }, [document.id, onDownload]);
+
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    if (window.confirm(`Are you sure you want to delete "${document.filename}"?`)) {
+      onDelete(document.id);
+    }
+  }, [document.id, document.filename, onDelete]);
 
   return (
     <article
@@ -144,6 +151,14 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload }
         >
           <Download className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
+        <button
+          onClick={handleDelete}
+          className="px-2.5 py-1.5 bg-white border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-500 transition-all duration-300 font-medium text-xs flex-shrink-0"
+          aria-label="Delete document"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
       </div>
     </article>
   );
@@ -153,7 +168,8 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload }
     prevProps.document.id === nextProps.document.id &&
     prevProps.document.uploadedAt === nextProps.document.uploadedAt &&
     prevProps.onView === nextProps.onView &&
-    prevProps.onDownload === nextProps.onDownload
+    prevProps.onDownload === nextProps.onDownload &&
+    prevProps.onDelete === nextProps.onDelete
   );
 });
 

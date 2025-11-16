@@ -43,6 +43,25 @@ const DocumentsList = () => {
     }
   };
 
+  const handleDelete = async (documentId) => {
+    try {
+      const response = await fetch(`/api/delete/${documentId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // Document will be removed from the list automatically via context refresh
+        console.log('Document deleted successfully');
+      } else {
+        console.error('Delete failed:', await response.text());
+        alert('Failed to delete document. Please try again.');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete document. Please check your connection.');
+    }
+  };
+
   if (loading && documents.length === 0) {
     return (
       <div className="w-full">
@@ -157,6 +176,7 @@ const DocumentsList = () => {
                   document={doc} 
                   onView={handleViewDetails}
                   onDownload={handleDownload}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
