@@ -139,21 +139,23 @@ const DocumentsList = () => {
                 {isSelectionMode ? 'Cancel Selection' : 'Select Multiple'}
               </button>
             )}
-            {isSelectionMode && selectedDocs.size > 0 && (
+            {isSelectionMode && (
               <>
                 <button
                   onClick={toggleSelectAll}
                   className="px-4 py-2 bg-purple-100 text-purple-700 border-2 border-purple-300 hover:bg-purple-200 rounded-xl text-sm font-medium transition-all duration-300"
                 >
-                  {selectedDocs.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
+                  {selectedDocs.size === filteredDocuments.length && selectedDocs.size > 0 ? 'Deselect All' : 'Select All'}
                 </button>
-                <button
-                  onClick={handleBulkDelete}
-                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete {selectedDocs.size} Selected
-                </button>
+                {selectedDocs.size > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete {selectedDocs.size} Selected
+                  </button>
+                )}
               </>
             )}
             <div className="relative">
