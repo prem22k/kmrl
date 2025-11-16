@@ -4,7 +4,8 @@ export async function categorizeDocument(textContent, fileName = '') {
   console.log('File Name:', fileName);
   console.log('Text Preview:', textContent.substring(0, 200));
   
-  // Check if text extraction failed
+  // Check if text extraction failed or contains PDF metadata
+  const hasPDFMetadata = /\b(ReportLab|endobj|endstream|stream\s*\n|\/Type\s*\/Page|\/Filter|\/Length)/i.test(textContent);
   const isFailedExtraction = textContent.includes('parsing failed') || 
                             textContent.includes('processing failed') ||
                             textContent.includes('processing encountered') ||
@@ -12,6 +13,7 @@ export async function categorizeDocument(textContent, fileName = '') {
                             textContent.includes('image-based') ||
                             textContent.includes('encrypted') ||
                             textContent.includes('filename-based analysis') ||
+                            hasPDFMetadata ||
                             textContent.length < 100;
   
   if (isFailedExtraction) {
