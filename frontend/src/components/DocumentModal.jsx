@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, Download, FileText, Clock, Tag, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, Download, FileText, Clock, Tag, AlertCircle, CheckCircle2, Sparkles, Trash2 } from 'lucide-react';
 
-const DocumentModal = ({ document, isOpen, onClose }) => {
+const DocumentModal = ({ document, isOpen, onClose, onDelete }) => {
   if (!isOpen || !document) return null;
 
   const handleDownload = async () => {
@@ -20,6 +20,13 @@ const DocumentModal = ({ document, isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Download failed:', error);
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete "${document.filename}"? This action cannot be undone.`)) {
+      onDelete(document.id);
+      onClose(); // Close modal after deletion
     }
   };
 
@@ -263,6 +270,13 @@ const DocumentModal = ({ document, isOpen, onClose }) => {
             ID: <span className="font-semibold text-gray-700">{document.id}</span>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={handleDelete}
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Document
+            </button>
             <button
               onClick={handleDownload}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"

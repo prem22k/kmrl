@@ -4,9 +4,9 @@
  */
 
 import React, { memo, useCallback } from 'react';
-import { FileText, Download, Eye, Clock, Trash2 } from 'lucide-react';
+import { FileText, Download, Eye, Clock } from 'lucide-react';
 
-const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, onDelete }) {
+const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, isSelectionMode, isSelected, onToggleSelect }) {
   // Category color mapping
   const categoryColors = {
     Engineering: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -68,22 +68,38 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
     onDownload(document.id);
   }, [document.id, onDownload]);
 
-  const handleDelete = useCallback((e) => {
-    e.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete "${document.filename}"?`)) {
-      onDelete(document.id);
+  const handleCardClick = useCallback(() => {
+    if (isSelectionMode) {
+      onToggleSelect(document.id);
+    } else {
+      onView(document);
     }
-  }, [document.id, document.filename, onDelete]);
+  }, [isSelectionMode, onToggleSelect, onView, document]);
 
   return (
     <article
-      className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group overflow-hidden"
-      onClick={handleView}
+      className={`bg-white rounded-xl border ${
+        isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-200'
+      } p-4 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group overflow-hidden relative`}
+      onClick={handleCardClick}
       role="button"
       tabIndex={0}
-      aria-label={`View details for ${document.filename}`}
-      onKeyPress={(e) => e.key === 'Enter' && handleView()}
+      aria-label={`${isSelectionMode ? 'Select' : 'View details for'} ${document.filename}`}
+      onKeyPress={(e) => e.key === 'Enter' && handleCardClick()}
     >
+      {/* Selection Checkbox */}
+      {isSelectionMode && (
+        <div className="absolute top-3 right-3 z-10">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(document.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          />
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-start gap-2.5 mb-3">
         <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg shadow-md">
@@ -135,30 +151,31 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-2.5 border-t border-gray-100">
-        <button
-          onClick={handleView}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-300 font-medium text-xs shadow-sm hover:shadow-md whitespace-nowrap"
-          aria-label="View document details"
-        >
-          <Eye className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-          <span>View</span>
-        </button>
-        <button
-          onClick={handleDownload}
-          className="px-2.5 py-1.5 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-400 transition-all duration-300 font-medium text-xs flex-shrink-0"
-          aria-label="Download document"
-          title="Download"
-        >
-          <Download className="w-3.5 h-3.5" aria-hidden="true" />
-        </button>
-        <button
-          onClick={handleDelete}
-          className="px-2.5 py-1.5 bg-white border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-500 transition-all duration-300 font-medium text-xs flex-shrink-0"
-          aria-label="Delete document"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-        </button>
+        {!isSelectionMode && (
+          <>
+            <button
+              onClick={handleView}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-300 font-medium text-xs shadow-sm hover:shadow-md whitespace-nowrap"
+              aria-label="View document details"
+            >
+              <Eye className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+              <span>View</span>
+            </button>
+            <button
+              onClick={handleDownload}
+              className="px-2.5 py-1.5 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-400 transition-all duration-300 font-medium text-xs flex-shrink-0"
+              aria-label="Download document"
+              title="Download"
+            >
+              <Download className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </>
+        )}
+        {isSelectionMode && (
+          <div className="flex-1 text-center py-1.5 text-sm font-medium text-gray-600">
+            {isSelected ? '✓ Selected' : 'Click to select'}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -169,7 +186,9 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
     prevProps.document.uploadedAt === nextProps.document.uploadedAt &&
     prevProps.onView === nextProps.onView &&
     prevProps.onDownload === nextProps.onDownload &&
-    prevProps.onDelete === nextProps.onDelete
+    prevProps.isSelectionMode === nextProps.isSelectionMode &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.onToggleSelect === nextProps.onToggleSelect
   );
 });
 
