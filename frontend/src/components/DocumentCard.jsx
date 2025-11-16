@@ -78,9 +78,11 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
 
   return (
     <article
-      className={`bg-white rounded-xl border ${
-        isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-200'
-      } p-4 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group overflow-hidden relative`}
+      className={`bg-white rounded-xl border-2 ${
+        isSelected ? 'border-blue-500 ring-4 ring-blue-200 bg-blue-50' : 'border-gray-200'
+      } p-4 shadow-sm hover:shadow-xl transition-all duration-300 ${
+        !isSelectionMode ? 'hover:-translate-y-1' : ''
+      } cursor-pointer group overflow-hidden relative`}
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
@@ -89,13 +91,16 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
     >
       {/* Selection Checkbox */}
       {isSelectionMode && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-3 right-3 z-10 bg-white rounded-lg p-1 shadow-md border-2 border-gray-300">
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onToggleSelect(document.id)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect(document.id);
+            }}
             onClick={(e) => e.stopPropagation()}
-            className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="w-6 h-6 rounded border-2 border-gray-400 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
           />
         </div>
       )}
@@ -172,8 +177,12 @@ const DocumentCard = memo(function DocumentCard({ document, onView, onDownload, 
           </>
         )}
         {isSelectionMode && (
-          <div className="flex-1 text-center py-1.5 text-sm font-medium text-gray-600">
-            {isSelected ? '✓ Selected' : 'Click to select'}
+          <div className={`flex-1 text-center py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+            isSelected 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}>
+            {isSelected ? '✓ Selected' : 'Click to Select'}
           </div>
         )}
       </div>
