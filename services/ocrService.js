@@ -1,27 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import Tesseract from "tesseract.js";
 import mammoth from "mammoth";
-
-// Optional imports - these require native dependencies
-let canvasAvailable = false;
-let pdfToPicAvailable = false;
-
-try {
-  await import("canvas");
-  canvasAvailable = true;
-  console.log("✅ Canvas library available");
-} catch (error) {
-  console.log("⚠️ Canvas library not available - PDF to image conversion disabled");
-}
-
-try {
-  await import("pdf-to-pic");
-  pdfToPicAvailable = true;
-  console.log("✅ pdf-to-pic library available");
-} catch (error) {
-  console.log("⚠️ pdf-to-pic library not available - using fallback PDF extraction");
-}
 
 /**
  * Main entry point for OCR processing
@@ -104,7 +85,7 @@ export async function performOCRAndAnalysis(filePath) {
 }
 
 /**
- * Extract text from PDF - converts to images then uses OCR
+ * Extract text from PDF - tries multiple methods including PDF-to-Image-to-OCR
  */
 async function extractTextFromPDF(filePath, fileName) {
   let textContent = "";
@@ -116,128 +97,153 @@ async function extractTextFromPDF(filePath, fileName) {
     const pdfBuffer = fs.readFileSync(filePath);
     
     const pdfData = await pdfParse(pdfBuffer, { max: 0 }).catch(err => {
-      console.log("pdf-parse failed:", err.message);
+      console.log("pdf-parse error:", err.message);
       return null;
     });
     
-    // Check if we got substantial text (more than just PDF metadata)
     if (pdfData && pdfData.text && pdfData.text.trim().length > 100) {
-      // Filter out PDF internal code/metadata
-      const cleanedText = pdfData.text
-        .replace(/\b(ReportLab|stream|endstream|endobj|obj)\b/gi, '')
-        .replace(/<<[^>]*>>/g, '')
-        .replace(/\/[A-Z][A-Za-z0-9]*/g, '')
-        .trim();
+      // Check if text contains PDF metadata keywords (indicates bad extraction)
+      const hasPDFMetadata = /\b(ReportLab|endobj|endstream|stream\s*\n|\/Type\s*\/Page|\/Filter|\/Length)/i.test(pdfData.text);
       
-      if (cleanedText.length > 50) {
-        console.log(`✅ Extracted ${cleanedText.length} characters using pdf-parse`);
+      if (!hasPDFMetadata) {
+        textContent = pdfData.text.trim();
+        console.log(`✅ Extracted ${textContent.length} characters using pdf-parse`);
         console.log(`📊 PDF has ${pdfData.numpages} pages`);
-        return cleanedText;
-      }
-    }
-    
-    // Method 2: Convert PDF to images and OCR (for scanned/image-based PDFs)
-    // Only try this if the required libraries are available
-    if (canvasAvailable && pdfToPicAvailable) {
-      console.log("Method 2: Converting PDF to images for OCR...");
-      textContent = await convertPDFToImagesAndOCR(filePath, fileName);
-      
-      if (textContent && textContent.length > 50) {
         return textContent;
+      } else {
+        console.log("⚠️ PDF metadata detected - switching to image-based OCR");
       }
-    } else {
-      console.log("⚠️ Method 2 skipped: pdf-to-pic or canvas not available");
     }
     
-    // Method 3: Last resort - return informative message
-    console.log("⚠️ Could not extract substantial text from PDF");
+    // Method 2: PDF-to-Image-to-OCR for scanned/image-based PDFs
+    console.log("Method 2: Converting PDF to images for OCR...");
+    textContent = await convertPDFToImagesAndOCR(filePath, fileName);
+    
+    if (textContent && textContent.length > 50) {
+      console.log(`✅ Successfully extracted ${textContent.length} characters via OCR`);
+      return textContent;
+    }
+    
+    // Method 3: Fallback message
+    console.log("⚠️ PDF processing incomplete");
     const fileSize = (pdfBuffer.length / 1024).toFixed(2);
-    return `${fileName} (${fileSize} KB PDF) - This PDF appears to contain minimal readable text. The document may be encrypted, corrupted, or contain primarily images without text.`;
+    return `${fileName} (${fileSize} KB PDF) - Content extraction unsuccessful. This PDF may contain minimal readable text, be encrypted, or contain primarily images.`;
     
   } catch (error) {
     console.error("PDF extraction error:", error.message);
-    return `${fileName} - PDF processing error: ${error.message}. Please verify the file is not corrupted or password-protected.`;
+    return `${fileName} - PDF processing error: ${error.message}`;
   }
 }
 
 /**
- * Convert PDF pages to images and run OCR on each page
+ * Convert PDF pages to images and run Tesseract OCR on each page
  */
 async function convertPDFToImagesAndOCR(filePath, fileName) {
+  const tempDir = path.join(path.dirname(filePath), `temp_ocr_${Date.now()}`);
+  
   try {
-    // Use pdf-to-pic library to convert PDF to images
-    const { fromPath } = await import("pdf-to-pic");
-    const tempDir = path.join(path.dirname(filePath), 'temp_pdf_images');
+    // Create temp directory
+    fs.mkdirSync(tempDir, { recursive: true });
+    console.log(`📁 Created temp directory for images`);
     
-    // Create temp directory if it doesn't exist
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+    const outputPrefix = path.join(tempDir, 'page');
+    let imageFiles = [];
+    
+    // Try pdftoppm (poppler-utils) first - usually available on Linux
+    try {
+      console.log("🔄 Attempting pdftoppm conversion...");
+      execSync(`pdftoppm -png -r 200 "${filePath}" "${outputPrefix}"`, {
+        stdio: 'pipe',
+        timeout: 60000 // 60 second timeout
+      });
+      
+      // Find generated PNG files
+      imageFiles = fs.readdirSync(tempDir)
+        .filter(file => file.endsWith('.png'))
+        .sort()
+        .map(file => path.join(tempDir, file));
+      
+      console.log(`✅ pdftoppm generated ${imageFiles.length} page images`);
+      
+    } catch (popplerError) {
+      console.log("⚠️ pdftoppm not available, trying pdf-to-pic library...");
+      
+      // Fallback to pdf-to-pic library
+      try {
+        const { fromPath } = await import("pdf-to-pic");
+        
+        const converter = fromPath(filePath, {
+          density: 200,
+          savePath: tempDir,
+          format: "png",
+          width: 2000,
+          height: 2000
+        });
+        
+        let pageNum = 1;
+        for await (const page of converter) {
+          imageFiles.push(page.path);
+          console.log(`📄 Converted page ${pageNum}`);
+          pageNum++;
+        }
+        
+        console.log(`✅ pdf-to-pic generated ${imageFiles.length} page images`);
+        
+      } catch (libError) {
+        console.error("❌ Both pdftoppm and pdf-to-pic failed");
+        throw new Error("PDF to image conversion not available");
+      }
     }
     
-    console.log("🔄 Converting PDF pages to images...");
+    if (imageFiles.length === 0) {
+      console.log("⚠️ No images generated from PDF");
+      return "";
+    }
     
-    // Convert PDF to images (one per page)
-    const converter = fromPath(filePath, {
-      density: 200,           // DPI for image quality
-      savePath: tempDir,
-      format: "png",
-      width: 2000,           // Higher resolution for better OCR
-      height: 2000
-    });
-    
+    // Run Tesseract OCR on each image
+    console.log(`🔍 Running OCR on ${imageFiles.length} pages...`);
     let allText = "";
-    let pageNum = 1;
     
-    try {
-      // Convert and OCR each page
-      for await (const page of converter) {
-        console.log(`📄 Processing page ${pageNum}...`);
-        
-        // Run Tesseract OCR on the image
-        const { data: { text } } = await Tesseract.recognize(page.path, "eng", {
+    for (let i = 0; i < imageFiles.length; i++) {
+      const imagePath = imageFiles[i];
+      console.log(`📄 OCR Page ${i + 1}/${imageFiles.length}...`);
+      
+      try {
+        const { data: { text } } = await Tesseract.recognize(imagePath, "eng", {
           logger: (m) => {
-            if (m.status === 'recognizing text') {
-              console.log(`Page ${pageNum} OCR Progress: ${(m.progress * 100).toFixed(1)}%`);
+            if (m.status === 'recognizing text' && m.progress % 0.25 < 0.01) {
+              console.log(`   ${(m.progress * 100).toFixed(0)}% complete`);
             }
           }
         });
         
         if (text && text.trim().length > 10) {
           allText += text.trim() + "\n\n";
-          console.log(`✅ Page ${pageNum}: Extracted ${text.trim().length} characters`);
+          console.log(`   ✅ Extracted ${text.trim().length} characters`);
         }
-        
-        // Clean up the temporary image file
-        try {
-          fs.unlinkSync(page.path);
-        } catch (cleanupError) {
-          console.warn(`Could not delete temp file: ${page.path}`);
-        }
-        
-        pageNum++;
+      } catch (ocrError) {
+        console.error(`   ❌ OCR failed for page ${i + 1}`);
       }
-    } catch (conversionError) {
-      console.error("PDF to image conversion error:", conversionError.message);
+      
+      // Clean up image immediately
+      try {
+        fs.unlinkSync(imagePath);
+      } catch (e) { /* ignore */ }
     }
     
-    // Clean up temp directory
-    try {
-      fs.rmdirSync(tempDir, { recursive: true });
-    } catch (cleanupError) {
-      console.warn("Could not remove temp directory");
-    }
-    
-    if (allText.trim().length > 50) {
-      console.log(`✅ Total extracted: ${allText.length} characters from ${pageNum - 1} pages`);
-      return allText.trim();
-    }
-    
-    return `${fileName} - PDF processed but minimal text found. The document may contain primarily images or graphics.`;
+    console.log(`\n✅ Total: ${allText.length} characters from ${imageFiles.length} pages`);
+    return allText.trim();
     
   } catch (error) {
-    console.error("PDF to image conversion failed:", error.message);
-    // Return a message indicating the method failed
-    return null;
+    console.error("❌ PDF to image OCR failed:", error.message);
+    return "";
+  } finally {
+    // Clean up temp directory
+    try {
+      if (fs.existsSync(tempDir)) {
+        fs.rmdirSync(tempDir, { recursive: true });
+      }
+    } catch (e) { /* ignore */ }
   }
 }
 

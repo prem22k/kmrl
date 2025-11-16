@@ -133,18 +133,21 @@ Rules:
       return {
         category: parsedResult.category || 'Other',
         priority: parsedResult.priority || 'Low',
-        summary: parsedResult.summary || 'Document processed for categorization.'
+        summary: parsedResult.summary || 'Document analysis completed.'
       };
     }
   } catch (error) {
     console.log('AI analysis failed, using fallback:', error.message);
   }
   
-  // Fallback to basic analysis
+  // Fallback to keyword-based analysis
+  const wordCount = textContent.split(/\s+/).length;
+  const preview = textContent.substring(0, 200).trim();
+  
   return {
     category: 'Other',
     priority: 'Low',
-    summary: `Document contains ${textContent.split(' ').length} words and has been processed for review.`
+    summary: `Document with ${wordCount} words. Preview: "${preview}...". AI analysis unavailable - please review manually for detailed categorization.`
   };
 }
 
