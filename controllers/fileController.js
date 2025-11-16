@@ -319,3 +319,50 @@ export const getStatistics = asyncHandler(async (req, res) => {
     });
   }
 });
+
+/**
+ * Delete document and its associated file
+ */
+export const deleteDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  logger.info('Document deletion initiated', { documentId: id });
+
+  // Try to find document in database first
+  let document;
+  try {
+    document = await DatabaseService.getDocumentById(id);
+  } catch (dbError) {
+    document = processedDocuments.find(d => d.id === id);
+  }
+
+  if (!document) {
+    throw new AppError("Document not found", 404);
+  }
+
+  // Delete physical file if it exists
+  if (document.filePath && fs.existsSync(document.filePath)) {
+    try {
+      fs.unlinkSync(document.filePath);
+      logger.info('Physical file deleted', { filePath: document.filePath });
+    } catch (fileError) {
+      logger.warn('Could not delete physical file', { error: fileError.message });
+    }
+  }
+
+  // Delete from database
+  try {
+    await DatabaseService.deleteDocument(id);
+    logger.info('Document deleted from database', { documentId: id });
+  } catch (dbError) {
+    // Delete from in-memory storage
+    processedDocuments = processedDocuments.filter(d => d.id !== id);
+    logger.info('Document deleted from memory', { documentId: id });
+  }
+
+  res.json({
+    success: true,
+    message: 'Document deleted successfully',
+    documentId: id
+  });
+});

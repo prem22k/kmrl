@@ -4,7 +4,8 @@ import {
   getDocuments, 
   downloadFile, 
   getDocumentById,
-  getStatistics 
+  getStatistics,
+  deleteDocument
 } from "../controllers/fileController.js";
 import { upload } from "../middlewares/uploadMiddleware.js";
 import { 
@@ -72,6 +73,18 @@ router.get(
 router.get(
   "/statistics",
   getStatistics
+);
+
+/**
+ * @route   DELETE /api/delete/:id
+ * @desc    Delete a document and its associated file
+ * @access  Public (add auth later)
+ */
+router.delete(
+  "/delete/:id",
+  validateDocumentId,
+  auditLog('document_delete'),
+  deleteDocument
 );
 
 export default router;
