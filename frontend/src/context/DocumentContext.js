@@ -63,6 +63,23 @@ export const DocumentProvider = ({ children }) => {
     }
   };
 
+  const deleteDocument = async (documentId) => {
+    try {
+      await axios.delete(`/api/delete/${documentId}`);
+      
+      // Immediately remove from local state for instant feedback
+      setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId));
+      
+      // Also refresh from server to ensure sync
+      await fetchDocuments();
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Delete error:', err);
+      throw new Error(err.response?.data?.message || 'Delete failed');
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
   }, []);
@@ -73,6 +90,7 @@ export const DocumentProvider = ({ children }) => {
     error,
     fetchDocuments,
     uploadDocument,
+    deleteDocument,
     setError
   };
 
