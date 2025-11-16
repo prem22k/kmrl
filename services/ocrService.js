@@ -2,7 +2,26 @@ import fs from "fs";
 import path from "path";
 import Tesseract from "tesseract.js";
 import mammoth from "mammoth";
-import { createCanvas, loadImage } from "canvas";
+
+// Optional imports - these require native dependencies
+let canvasAvailable = false;
+let pdfToPicAvailable = false;
+
+try {
+  await import("canvas");
+  canvasAvailable = true;
+  console.log("✅ Canvas library available");
+} catch (error) {
+  console.log("⚠️ Canvas library not available - PDF to image conversion disabled");
+}
+
+try {
+  await import("pdf-to-pic");
+  pdfToPicAvailable = true;
+  console.log("✅ pdf-to-pic library available");
+} catch (error) {
+  console.log("⚠️ pdf-to-pic library not available - using fallback PDF extraction");
+}
 
 /**
  * Main entry point for OCR processing
@@ -118,11 +137,16 @@ async function extractTextFromPDF(filePath, fileName) {
     }
     
     // Method 2: Convert PDF to images and OCR (for scanned/image-based PDFs)
-    console.log("Method 2: Converting PDF to images for OCR...");
-    textContent = await convertPDFToImagesAndOCR(filePath, fileName);
-    
-    if (textContent && textContent.length > 50) {
-      return textContent;
+    // Only try this if the required libraries are available
+    if (canvasAvailable && pdfToPicAvailable) {
+      console.log("Method 2: Converting PDF to images for OCR...");
+      textContent = await convertPDFToImagesAndOCR(filePath, fileName);
+      
+      if (textContent && textContent.length > 50) {
+        return textContent;
+      }
+    } else {
+      console.log("⚠️ Method 2 skipped: pdf-to-pic or canvas not available");
     }
     
     // Method 3: Last resort - return informative message
