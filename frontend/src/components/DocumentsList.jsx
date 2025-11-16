@@ -8,7 +8,7 @@ const DocumentsList = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { documents, loading, error } = useDocuments();
+  const { documents, loading, error, deleteDocument } = useDocuments();
 
   const filteredDocuments = documents.filter(doc => 
     !selectedCategory || doc.category?.toLowerCase() === selectedCategory.toLowerCase()
@@ -45,20 +45,11 @@ const DocumentsList = () => {
 
   const handleDelete = async (documentId) => {
     try {
-      const response = await fetch(`/api/delete/${documentId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        // Document will be removed from the list automatically via context refresh
-        console.log('Document deleted successfully');
-      } else {
-        console.error('Delete failed:', await response.text());
-        alert('Failed to delete document. Please try again.');
-      }
+      await deleteDocument(documentId);
+      console.log('Document deleted successfully');
     } catch (error) {
       console.error('Delete failed:', error);
-      alert('Failed to delete document. Please check your connection.');
+      alert('Failed to delete document. Please try again.');
     }
   };
 
